@@ -37,36 +37,39 @@ public class Main extends SimpleApplication implements PhysicsCollisionListener 
     private Node immobile;
     private Node mobile;
     private Spatial court;
-    
+
     Spatial[] blueBalls = new Spatial[4];
     Spatial[] redBalls = new Spatial[4];
     Spatial jack;
-    
-    ArrayList<Spatial> allBalls;
+    Vector3f jackPos = Vector3f.ZERO;
+
+    ArrayList<Spatial> allBalls = new ArrayList<>();
     Spatial[] ballOrder = new Spatial[8];
-    
+
+    Random random = new Random();
+
     private BulletAppState bulletAppState;
-    
+
     public static void main(String[] args) {
         Main app = new Main();
         app.start();
     }
-    
+
     @Override
     public void simpleInitApp() {
         // init Physics
         bulletAppState = new BulletAppState();
         stateManager.attach(bulletAppState);
         bulletAppState.setDebugEnabled(inputEnabled);
-        
+
         flyCam.setMoveSpeed(15);
         cam.setLocation(new Vector3f(-12f, 1f, 4f));
         cam.lookAt(new Vector3f(-0f, 0, 0), Vector3f.UNIT_Y);
-        
+
         viewPort.setBackgroundColor(new ColorRGBA(0.7f, 0.8f, 1f, 1f));
-        
+
         court = assetManager.loadModel("Models/bocce_extrude/bocce_extrude.j3o");
-        
+
         CollisionShape courtShape = CollisionShapeFactory.createMeshShape(court);
         RigidBodyControl courtPhy = new RigidBodyControl(courtShape, 0.0f);
         courtPhy.setFriction(1.0f);
@@ -74,32 +77,38 @@ public class Main extends SimpleApplication implements PhysicsCollisionListener 
         court.addControl(courtPhy);
         bulletAppState.getPhysicsSpace().add(court);
         bulletAppState.getPhysicsSpace().addCollisionListener(this);
-        
+
         immobile = new Node("immobile");
         mobile = new Node("mobile");
-        
+
         immobile.attachChild(court);
-        
+
         rootNode.attachChild(immobile);
-        
+
         DirectionalLight sun = new DirectionalLight();
         sun.setDirection(new Vector3f(-0.1f, -0.7f, -1.0f).normalizeLocal());
         rootNode.addLight(sun);
-        
+
         Random random = new Random();
-        float randomFloat = random.nextFloat();
 
         //Vector3f randForce = new Vector3f(17.5f + randomFloat, -0.5f + randomFloat, 0f + randomFloat);
-        jack = makeBall(new Vector3f(-12, 1, 0f), new Vector3f(20.5f + randomFloat, -0.5f + randomFloat, 0f + randomFloat), ColorRGBA.Yellow, 0.02f);
-        blueBalls[0] = makeBall(new Vector3f(-12, 1, -0.5f), new Vector3f(20.5f + randomFloat, -0.5f + randomFloat, 0f + randomFloat), ColorRGBA.Blue, 0.0535f);
-        redBalls[0] = makeBall(new Vector3f(-12, 1, 0.5f), new Vector3f(20.5f + randomFloat, -0.5f + randomFloat, 0f + randomFloat), ColorRGBA.Red, 0.0535f);
-        
+        /*
+        jack = makeBall(new Vector3f(-12, 1, 0f), new Vector3f(17.5f + random.nextFloat(), -0.5f + random.nextFloat(), 0f + random.nextFloat()), ColorRGBA.Yellow, 0.02f, "jack");
+        blueBalls[0] = makeBall(new Vector3f(-12, 1, -0.5f), new Vector3f(17.5f + random.nextFloat(), -0.5f + random.nextFloat(), 0f + random.nextFloat()), ColorRGBA.Blue, 0.0535f, "blue0");
+        redBalls[0] = makeBall(new Vector3f(-12, 1, 0.5f), new Vector3f(17.5f + random.nextFloat(), -0.5f + random.nextFloat(), 0f + random.nextFloat()), ColorRGBA.Red, 0.0535f, "red0");
+        blueBalls[1] = makeBall(new Vector3f(-12, 1, -0.25f), new Vector3f(17.5f + random.nextFloat(), -0.5f + random.nextFloat(), 0f + random.nextFloat()), ColorRGBA.Blue, 0.0535f, "blue1");
+        redBalls[1] = makeBall(new Vector3f(-12, 1, 0.25f), new Vector3f(17.5f + random.nextFloat(), -0.5f + random.nextFloat(), 0f + random.nextFloat()), ColorRGBA.Red, 0.0535f, "red1");
+        blueBalls[2] = makeBall(new Vector3f(-12, 1, -0.15f), new Vector3f(17.5f + random.nextFloat(), -0.5f + random.nextFloat(), 0f + random.nextFloat()), ColorRGBA.Blue, 0.0535f, "blue2");
+        redBalls[2] = makeBall(new Vector3f(-12, 1, 0.15f), new Vector3f(17.5f + random.nextFloat(), -0.5f + random.nextFloat(), 0f + random.nextFloat()), ColorRGBA.Red, 0.0535f, "red2");
+        blueBalls[3] = makeBall(new Vector3f(-12, 1, -0.35f), new Vector3f(17.5f + random.nextFloat(), -0.5f + random.nextFloat(), 0f + random.nextFloat()), ColorRGBA.Blue, 0.0535f, "blue3");
+        redBalls[3] = makeBall(new Vector3f(-12, 1, 0.35f), new Vector3f(17.5f + random.nextFloat(), -0.5f + random.nextFloat(), 0f + random.nextFloat()), ColorRGBA.Red, 0.0535f, "red3");
+         */
     }
-    
-    public Spatial makeBall(Vector3f position, Vector3f speed, ColorRGBA color, float radius) {
-        
+
+    public Spatial makeBall(Vector3f position, Vector3f speed, ColorRGBA color, float radius, String name) {
+
         Sphere sphere = new Sphere(64, 64, radius, true, true);
-        Spatial ball = new Geometry("ball", sphere);
+        Spatial ball = new Geometry(name, sphere);
         Material ballMat = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
         ballMat.setColor("Color", color);
         ball.setMaterial(ballMat);
@@ -117,21 +126,22 @@ public class Main extends SimpleApplication implements PhysicsCollisionListener 
         ballPhy.setCcdSweptSphereRadius(radius / 4);
         return ball;
     }
-    
+
     @Override
     public void simpleUpdate(float tpf) {
-        
+
         if (areBallsMoving()) {
             System.out.println("Moving");
         } else {
             // System.out.println("Stopped");
 
-            Vector3f jackPos;
-            jackPos = jack.getLocalTranslation();
-            
-            
+            //Vector3f jackPos = Vector3f.ZERO;
+            if (mobile.hasChild(jack)) {
+                jackPos = jack.getLocalTranslation();
+            }
+
             for (Spatial blueBall : blueBalls) {
-                if (blueBall != null) {
+                if (blueBall != null && !allBalls.contains(blueBall)) {
                     allBalls.add(blueBall);
 
                     /*
@@ -150,8 +160,9 @@ public class Main extends SimpleApplication implements PhysicsCollisionListener 
                 }
             }
             for (Spatial redBall : redBalls) {
-                if (redBall != null) {
+                if (redBall != null && !allBalls.contains(redBall)) {
                     allBalls.add(redBall);
+
                     /*
                     //ballPos = blueBall.getLocalTranslation();
                     //System.out.println(calculateDistance(jackPos, ballPos));
@@ -167,8 +178,13 @@ public class Main extends SimpleApplication implements PhysicsCollisionListener 
                      */
                 }
             }
-            System.out.println(allBalls.toString());
-            allBalls.sort( new Comparator<Spatial>() {
+
+            /*
+            for (Spatial ball : allBalls) {
+                System.out.println(ball.getName());
+            }
+             */
+            allBalls.sort(new Comparator<Spatial>() {
                 @Override
                 public int compare(Spatial o1, Spatial o2) {
                     if (calculateDistance(jackPos, o1.getLocalTranslation()) < calculateDistance(jackPos, o2.getLocalTranslation())) {
@@ -177,21 +193,32 @@ public class Main extends SimpleApplication implements PhysicsCollisionListener 
                         return 1;
                     }
                 }
-                
             });
-            
+
+            if (allBalls.size() < 8) {
+                throwBall();
+            }
+
         }
+
+        /*
+        for (Spatial ball : allBalls) {
+                System.out.println(ball.getName());
+            }
+         */
     }
-    
+
     public boolean areBallsMoving() {
         boolean areBallsMoving = false;
         RigidBodyControl ballCheck;
-        
-        RigidBodyControl jackCheck = jack.getControl(RigidBodyControl.class);
-        if (!jackCheck.getLinearVelocity().equals(Vector3f.ZERO)) {
-            areBallsMoving = true;
+
+        if (mobile.hasChild(jack)) {
+            RigidBodyControl jackCheck = jack.getControl(RigidBodyControl.class);
+            if (!jackCheck.getLinearVelocity().equals(Vector3f.ZERO)) {
+                areBallsMoving = true;
+            }
         }
-        
+
         for (Spatial blueBall : blueBalls) {
             if (blueBall != null) {
                 ballCheck = blueBall.getControl(RigidBodyControl.class);
@@ -200,7 +227,7 @@ public class Main extends SimpleApplication implements PhysicsCollisionListener 
                 }
             }
         }
-        
+
         for (Spatial redBall : redBalls) {
             if (redBall != null) {
                 ballCheck = redBall.getControl(RigidBodyControl.class);
@@ -209,21 +236,21 @@ public class Main extends SimpleApplication implements PhysicsCollisionListener 
                 }
             }
         }
-        
+
         return areBallsMoving;
     }
-    
+
     @Override
     public void simpleRender(RenderManager rm) {
         //TODO: add render code
     }
-    
+
     @Override
     public void collision(PhysicsCollisionEvent event) {
         // Vector3f output = null;
         float absorbEnergy = 0.95f;
-        
-        if (event.getNodeA().getName().equals("ball")) {
+
+        if (event.getNodeA().getParent().getName().equals("mobile")) {
             final Spatial node = event.getNodeA();
             //output = node.getLocalTranslation();
             RigidBodyControl nodeControl = node.getControl(RigidBodyControl.class);
@@ -239,7 +266,7 @@ public class Main extends SimpleApplication implements PhysicsCollisionListener 
 
                 // System.out.println(nodeControl.getLinearVelocity());
             }
-        } else if (event.getNodeB().getName().equals("ball")) {
+        } else if (event.getNodeB().getParent().getName().equals("mobile")) {
             final Spatial node = event.getNodeA();
             //output = node.getLocalTranslation();
             RigidBodyControl nodeControl = node.getControl(RigidBodyControl.class);
@@ -260,8 +287,33 @@ public class Main extends SimpleApplication implements PhysicsCollisionListener 
         //jack.setLinearVelocity(getLinearVelocity().mult(absorbEnergy));
         //setAngularVelocity(getAngularVelocity().mult(absorbEnergy));
     }
-    
+
     private float calculateDistance(Vector3f jackPos, Vector3f ballPos) {
         return jackPos.subtract(ballPos).length();
+    }
+
+    private void throwBall() {
+        if (!mobile.hasChild(jack)) {
+            jack = makeBall(new Vector3f(-12, 1, 0f), new Vector3f(17.5f + random.nextFloat(), -0.5f + random.nextFloat(), 0f + random.nextFloat()), ColorRGBA.Yellow, 0.02f, "jack");
+            return;
+        }
+        //redBalls[0] = redBalls[0] = makeBall(new Vector3f(-12, 1, 0.5f), new Vector3f(17.5f + random.nextFloat(), -0.5f + random.nextFloat(), 0f + random.nextFloat()), ColorRGBA.Red, 0.0535f, "red0");
+        if (allBalls.isEmpty() || allBalls.get(0).getName().contains("red")) {
+            for (int i = 0; i < blueBalls.length; i++) {
+                if (blueBalls[i] == null) {
+                    String name = "blue" + i;
+                    blueBalls[i] = makeBall(new Vector3f(-12, 1, -0.5f), new Vector3f(17.5f + random.nextFloat(), -0.5f + random.nextFloat(), 0f + random.nextFloat()), ColorRGBA.Blue, 0.0535f, name);
+                    break;
+                }
+            }
+        } else {
+            for (int i = 0; i < redBalls.length; i++) {
+                if (redBalls[i] == null) {
+                    String name = "red" + i;
+                    redBalls[i] = makeBall(new Vector3f(-12, 1, -0.5f), new Vector3f(17.5f + random.nextFloat(), -0.5f + random.nextFloat(), 0f + random.nextFloat()), ColorRGBA.Red, 0.0535f, name);
+                    break;
+                }
+            }
+        }
     }
 }
