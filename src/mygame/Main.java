@@ -294,24 +294,28 @@ public class Main extends SimpleApplication implements PhysicsCollisionListener 
 
     private void throwBall() {
         if (!mobile.hasChild(jack)) {
-            jack = makeBall(new Vector3f(-12, 1, 0f), new Vector3f(17.5f + random.nextFloat(), -0.5f + random.nextFloat(), 0f + random.nextFloat()), ColorRGBA.Yellow, 0.02f, "jack");
+            jack = makeBall(new Vector3f(-12, 1, 0f), new Vector3f(18f + random.nextFloat(), -0.5f + random.nextFloat(), 0f + random.nextFloat()), ColorRGBA.Yellow, 0.02f, "jack");
             return;
         }
-        //redBalls[0] = redBalls[0] = makeBall(new Vector3f(-12, 1, 0.5f), new Vector3f(17.5f + random.nextFloat(), -0.5f + random.nextFloat(), 0f + random.nextFloat()), ColorRGBA.Red, 0.0535f, "red0");
-        if (allBalls.isEmpty() || allBalls.get(0).getName().contains("red")) {
+        if (allBalls.isEmpty()) {
+            redBalls[0] = redBalls[0] = makeBall(new Vector3f(-12, 1, 0.5f), new Vector3f(17.5f + random.nextFloat(), -0.5f + random.nextFloat(), 0f + random.nextFloat()), ColorRGBA.Red, 0.0535f, "red0");
+            return;
+        }
+        if (allBalls.get(0).getName().contains("red") || redBalls[3] != null) {
             for (int i = 0; i < blueBalls.length; i++) {
                 if (blueBalls[i] == null) {
                     String name = "blue" + i;
                     blueBalls[i] = makeBall(new Vector3f(-12, 1, -0.5f), new Vector3f(17.5f + random.nextFloat(), -0.5f + random.nextFloat(), 0f + random.nextFloat()), ColorRGBA.Blue, 0.0535f, name);
-                    break;
+                    return;
                 }
             }
-        } else {
+        }
+        if (allBalls.get(0).getName().contains("blue") || blueBalls[3] != null) {
             for (int i = 0; i < redBalls.length; i++) {
                 if (redBalls[i] == null) {
                     String name = "red" + i;
                     redBalls[i] = makeBall(new Vector3f(-12, 1, -0.5f), new Vector3f(17.5f + random.nextFloat(), -0.5f + random.nextFloat(), 0f + random.nextFloat()), ColorRGBA.Red, 0.0535f, name);
-                    break;
+                    return;
                 }
             }
         }
