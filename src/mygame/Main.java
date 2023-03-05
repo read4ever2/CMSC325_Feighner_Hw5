@@ -54,11 +54,12 @@ public class Main extends SimpleApplication implements PhysicsCollisionListener 
 
     int redScore = 0;
     int blueScore = 0;
+    BitmapText scoreGUI;
+    String nextTurn = "";
 
     ArrayList<Spatial> allBalls = new ArrayList<>();
 
-    Random random = new Random();
-    boolean scorePrinted = false;
+    boolean ballThrown = false;
 
     private BulletAppState bulletAppState;
 
@@ -66,6 +67,8 @@ public class Main extends SimpleApplication implements PhysicsCollisionListener 
         Main app = new Main();
         app.start();
     }
+    private boolean turnDisplayed = false;
+    private boolean areBallsMoving = true;
 
     @Override
     public void simpleInitApp() {
@@ -120,28 +123,12 @@ public class Main extends SimpleApplication implements PhysicsCollisionListener 
         rootNode.addLight(sun);
 
         initCrossHairs();
-
-        // Random random = new Random();
-        //Vector3f randForce = new Vector3f(17.5f + randomFloat, -0.5f + randomFloat, 0f + randomFloat);
-        /*
-        jack = makeBall(new Vector3f(-12, 1, 0f), new Vector3f(17.5f + random.nextFloat(), -0.5f + random.nextFloat(), 0f + random.nextFloat()), ColorRGBA.Yellow, 0.02f, "jack");
-        blueBalls[0] = makeBall(new Vector3f(-12, 1, -0.5f), new Vector3f(17.5f + random.nextFloat(), -0.5f + random.nextFloat(), 0f + random.nextFloat()), ColorRGBA.Blue, 0.0535f, "blue0");
-        redBalls[0] = makeBall(new Vector3f(-12, 1, 0.5f), new Vector3f(17.5f + random.nextFloat(), -0.5f + random.nextFloat(), 0f + random.nextFloat()), ColorRGBA.Red, 0.0535f, "red0");
-        blueBalls[1] = makeBall(new Vector3f(-12, 1, -0.25f), new Vector3f(17.5f + random.nextFloat(), -0.5f + random.nextFloat(), 0f + random.nextFloat()), ColorRGBA.Blue, 0.0535f, "blue1");
-        redBalls[1] = makeBall(new Vector3f(-12, 1, 0.25f), new Vector3f(17.5f + random.nextFloat(), -0.5f + random.nextFloat(), 0f + random.nextFloat()), ColorRGBA.Red, 0.0535f, "red1");
-        blueBalls[2] = makeBall(new Vector3f(-12, 1, -0.15f), new Vector3f(17.5f + random.nextFloat(), -0.5f + random.nextFloat(), 0f + random.nextFloat()), ColorRGBA.Blue, 0.0535f, "blue2");
-        redBalls[2] = makeBall(new Vector3f(-12, 1, 0.15f), new Vector3f(17.5f + random.nextFloat(), -0.5f + random.nextFloat(), 0f + random.nextFloat()), ColorRGBA.Red, 0.0535f, "red2");
-        blueBalls[3] = makeBall(new Vector3f(-12, 1, -0.35f), new Vector3f(17.5f + random.nextFloat(), -0.5f + random.nextFloat(), 0f + random.nextFloat()), ColorRGBA.Blue, 0.0535f, "blue3");
-        redBalls[3] = makeBall(new Vector3f(-12, 1, 0.35f), new Vector3f(17.5f + random.nextFloat(), -0.5f + random.nextFloat(), 0f + random.nextFloat()), ColorRGBA.Red, 0.0535f, "red3");
-         */
         initInputs();
     }
-    final private ActionListener actionListener = new ActionListener() {
-        @Override
-        public void onAction(String name, boolean keyPressed, float tpf) {
-            if (name.equals("shoot") && !keyPressed) {
-                throwBall();
-            }
+
+    final private ActionListener actionListener = (String name, boolean keyPressed, float tpf) -> {
+        if (name.equals("shoot") && !keyPressed && !areBallsMoving) {
+            ballThrown = true;
         }
     };
 
@@ -171,18 +158,9 @@ public class Main extends SimpleApplication implements PhysicsCollisionListener 
     public void simpleUpdate(float tpf) {
 
         if (areBallsMoving()) {
-            // System.out.println("Moving");
-            if (jack.getLocalTranslation().y < 0) {
-                bulletAppState.getPhysicsSpace().remove(jack.getControl(RigidBodyControl.class));
-                mobile.detachChild(jack);
-                // jack = null;
-                System.out.println("Out of Bounds Rethrowing");
-            }
-
+            // Wait if balls are moving
         } else {
-            // System.out.println("Stopped");
 
-            //Vector3f jackPos = Vector3f.ZERO;
             if (mobile.hasChild(jack)) {
                 jackPos = jack.getLocalTranslation();
             }
@@ -191,75 +169,56 @@ public class Main extends SimpleApplication implements PhysicsCollisionListener 
                 if (blueBall != null && !allBalls.contains(blueBall)) {
                     allBalls.add(blueBall);
 
-                    /*
-                    ballPos = blueBall.getLocalTranslation();
-                    System.out.println(calculateDistance(jackPos, ballPos));
-                    for (int i = 0; i < allBalls.length; i++) {
-                        if (allBalls[i] == blueBall) {
-                            break;
-                        } else if (allBalls[i] == null) {
-                            allBalls[i] = blueBall;
-                            break;
-                        }
-
-                    }
-                     */
                 }
             }
             for (Spatial redBall : redBalls) {
                 if (redBall != null && !allBalls.contains(redBall)) {
                     allBalls.add(redBall);
 
-                    /*
-                    //ballPos = blueBall.getLocalTranslation();
-                    //System.out.println(calculateDistance(jackPos, ballPos));
-                    for (int i = 0; i < allBalls.length; i++) {
-                        if (allBalls[i] == redBall) {
-                            break;
-                        } else if (allBalls[i] == null) {
-                            allBalls[i] = redBall;
-                            break;
-                        }
-
-                    }
-                     */
                 }
             }
 
-            /*
-            for (Spatial ball : allBalls) {
-                System.out.println(ball.getName());
-            }
-             */
-            allBalls.sort(new Comparator<Spatial>() {
-                @Override
-                public int compare(Spatial o1, Spatial o2) {
-                    if (calculateDistance(jackPos, o1.getLocalTranslation()) < calculateDistance(jackPos, o2.getLocalTranslation())) {
-                        return -1;
-                    } else {
-                        return 1;
-                    }
+            allBalls.sort((Spatial o1, Spatial o2) -> {
+                if (calculateDistance(jackPos, o1.getLocalTranslation()) < calculateDistance(jackPos, o2.getLocalTranslation())) {
+                    return -1;
+                } else {
+                    return 1;
                 }
             });
 
-            if (allBalls.size() < 8) {
-                //throwBall();
+            if (!allBalls.isEmpty() && !turnDisplayed) {
+                if (allBalls.get(0).getName().contains("red") && redBalls[3] == null) {
+                    nextTurn = "Blue's Turn";
+                } else {
+                    nextTurn = "Red's Turn";
+                }
+                turnDisplayed = true;
+            }
+            if (allBalls.isEmpty() && !turnDisplayed && mobile.hasChild(jack)) {
+                nextTurn = "Red's Turn";
+                turnDisplayed = true;
+            }
+            if (allBalls.isEmpty() && !turnDisplayed && !mobile.hasChild(jack)) {
+                nextTurn = "Throw Jack";
+                turnDisplayed = true;
+            }
+            if (allBalls.size() < 8 && ballThrown) {
+                throwBall();
+                ballThrown = false;
+                turnDisplayed = false;
             }
 
         }
 
         calcScore();
 
-        // TODO: not resetting for new round; clear balls and phys controls
         if ((allBalls.size() == 8 && (redScore < 7 && blueScore < 7)) || (allBalls.size() == 8 && ((redScore >= 7 || blueScore >= 7) && (redScore == blueScore)))) {
             resetRound();
         }
         if (allBalls.size() == 8 && ((redScore >= 7 || blueScore >= 7) && (redScore != blueScore))) {
             endGame();
         }
-        // if ((allBalls.size() == 8 && ((redScore > 7 || blueScore > 7) && (redScore == blueScore)))) {
-        //     resetRound();
-        // }
+        updateGUI();
     }
 
     private void calcScore() {
@@ -294,13 +253,19 @@ public class Main extends SimpleApplication implements PhysicsCollisionListener 
     }
 
     public boolean areBallsMoving() {
-        boolean areBallsMoving = false;
+        areBallsMoving = false;
         RigidBodyControl ballCheck;
 
         if (mobile.hasChild(jack)) {
             RigidBodyControl jackCheck = jack.getControl(RigidBodyControl.class);
             if (!jackCheck.getLinearVelocity().equals(Vector3f.ZERO)) {
                 areBallsMoving = true;
+            }
+            if (jack.getLocalTranslation().y < 0) {
+                bulletAppState.getPhysicsSpace().remove(jack.getControl(RigidBodyControl.class));
+                mobile.detachChild(jack);
+                // jack = null;
+                System.out.println("Out of Bounds Rethrowing");
             }
 
         }
@@ -419,6 +384,7 @@ public class Main extends SimpleApplication implements PhysicsCollisionListener 
                 }
             }
         }
+        ballThrown = true;
     }
 
     private void resetRound() {
@@ -474,6 +440,17 @@ public class Main extends SimpleApplication implements PhysicsCollisionListener 
                 settings.getWidth() * 0.4f,
                 settings.getHeight() / 2, 0);
         guiNode.attachChild(ch);
+
+        scoreGUI = new BitmapText(guiFont);
+        scoreGUI.setSize(guiFont.getCharSet().getRenderedSize() * 2);
+        scoreGUI.setText("Red: 0\nBlue: 0\n" + nextTurn);
+        scoreGUI.setLocalTranslation(settings.getWidth() * 0.05f,
+                settings.getHeight() * 0.95f, 0);
+        guiNode.attachChild(scoreGUI);
+    }
+
+    private void updateGUI() {
+        scoreGUI.setText("Red: " + redScore + "\nBlue: " + blueScore + "\n" + nextTurn);
     }
 
     private void initInputs() {
