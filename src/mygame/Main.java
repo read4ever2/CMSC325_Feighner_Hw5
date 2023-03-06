@@ -35,6 +35,7 @@ import java.util.Scanner;
  * Move your Logic into AppStates or Controls
  *
  * @author normenhansen
+ * @author willfeighner
  */
 public class Main extends SimpleApplication implements PhysicsCollisionListener {
 
