@@ -8,8 +8,10 @@ import com.jme3.bullet.collision.shapes.CollisionShape;
 import com.jme3.bullet.control.RigidBodyControl;
 import com.jme3.bullet.util.CollisionShapeFactory;
 import com.jme3.font.BitmapText;
+import com.jme3.input.KeyInput;
 import com.jme3.input.MouseInput;
 import com.jme3.input.controls.ActionListener;
+import com.jme3.input.controls.KeyTrigger;
 import com.jme3.input.controls.MouseButtonTrigger;
 import com.jme3.light.DirectionalLight;
 import com.jme3.material.Material;
@@ -23,6 +25,7 @@ import com.jme3.renderer.ViewPort;
 import com.jme3.scene.Geometry;
 import com.jme3.scene.Node;
 import com.jme3.scene.Spatial;
+import com.jme3.scene.shape.Quad;
 import com.jme3.scene.shape.Sphere;
 import java.util.ArrayList;
 import java.util.Scanner;
@@ -49,6 +52,8 @@ public class Main extends SimpleApplication implements PhysicsCollisionListener 
     int blueScore = 0;
     BitmapText scoreGUI;
     String nextTurn = "";
+    String message = "";
+    float powerLevel = 0f;
 
     ArrayList<Spatial> allBalls = new ArrayList<>();
 
@@ -62,6 +67,8 @@ public class Main extends SimpleApplication implements PhysicsCollisionListener 
     }
     private boolean turnDisplayed = false;
     private boolean areBallsMoving = true;
+    private BitmapText powerLabel;
+    private Geometry powerMeter;
 
     @Override
     public void simpleInitApp() {
@@ -70,8 +77,9 @@ public class Main extends SimpleApplication implements PhysicsCollisionListener 
         stateManager.attach(bulletAppState);
         //bulletAppState.setDebugEnabled(inputEnabled);
 
-        flyCam.setMoveSpeed(15);
-        cam.setLocation(new Vector3f(-17f, 2f, 0f));
+        flyCam.setMoveSpeed(10);
+
+        cam.setLocation(new Vector3f(-13f, 2f, 0f));
         cam.lookAt(new Vector3f(-0f, 0, 0), Vector3f.UNIT_Y);
 
         cam.setViewPort(0f, 0.8f, 0f, 1f);
@@ -83,18 +91,18 @@ public class Main extends SimpleApplication implements PhysicsCollisionListener 
 
         cam2.resize(20, 100, true);
         cam2.setViewPort(0.8f, 1, 0, 1);
-        cam2.setLocation(new Vector3f(6.875f, 17f, 0));
+        cam2.setLocation(new Vector3f(6.9f, 17f, 0));
         // cam2.setRotation(new Quaternion(0,0.7071070192004544f,0,0.7071070192004544f));
         cam2.lookAt(new Vector3f(6.875f, 0f, 0f), Vector3f.UNIT_X);
 
         ViewPort view2 = renderManager.createMainView("Camera 2 view", cam2);
         view2.setClearFlags(true, true, true);
         view2.attachScene(rootNode);
-        view2.setBackgroundColor(new ColorRGBA(0.7f, 0.8f, 1f, 1f));
+        view2.setBackgroundColor(new ColorRGBA(0.5f, 0.8f, 1f, 1f));
 
-        viewPort.setBackgroundColor(new ColorRGBA(0.7f, 0.8f, 1f, 1f));
+        viewPort.setBackgroundColor(new ColorRGBA(0.5f, 0.8f, 1f, 1f));
 
-        court = assetManager.loadModel("Models/bocce_extrude/bocce_extrude.j3o");
+        court = assetManager.loadModel("Models/bocce_extrude2/bocce_extrude2.j3o");
 
         CollisionShape courtShape = CollisionShapeFactory.createMeshShape(court);
         RigidBodyControl courtPhy = new RigidBodyControl(courtShape, 0.0f);
@@ -122,6 +130,19 @@ public class Main extends SimpleApplication implements PhysicsCollisionListener 
     final private ActionListener actionListener = (String name, boolean keyPressed, float tpf) -> {
         if (name.equals("shoot") && !keyPressed && !areBallsMoving) {
             ballThrown = true;
+            message = "";
+        }
+        if (name.equals("PowerUp") && !keyPressed) {
+            powerLevel++;
+            if (powerLevel >= 30) {
+                powerLevel = 30;
+            }
+        }
+        if (name.equals("PowerDown") && !keyPressed) {
+            powerLevel--;
+            if (powerLevel <= 0) {
+                powerLevel = 0;
+            }
         }
     };
 
@@ -142,13 +163,14 @@ public class Main extends SimpleApplication implements PhysicsCollisionListener 
         //ballPhy.setLinearVelocity(new Vector3f(1f, 0f, 0f));
         mobile.attachChild(ball);
         rootNode.attachChild(mobile);
-        ballPhy.setCcdMotionThreshold(0.1f);
-        ballPhy.setCcdSweptSphereRadius(radius / 4);
+        ballPhy.setCcdMotionThreshold(0.0001f);
+        ballPhy.setCcdSweptSphereRadius(radius / 8);
         return ball;
     }
 
     @Override
     public void simpleUpdate(float tpf) {
+        bindCamera();
 
         if (areBallsMoving()) {
             // Wait if balls are moving
@@ -156,18 +178,22 @@ public class Main extends SimpleApplication implements PhysicsCollisionListener 
 
             if (mobile.hasChild(jack)) {
                 jackPos = jack.getLocalTranslation();
+                if (allBalls.isEmpty() && (jackPos.x > 11.75f || jackPos.x < 6.75f)) {
+                    bulletAppState.getPhysicsSpace().remove(jack.getControl(RigidBodyControl.class));
+                    mobile.detachChild(jack);
+                    // jack = null;
+                    message = "Jack must land\nin play area\nThrow again";
+                }
             }
 
             for (Spatial blueBall : blueBalls) {
                 if (blueBall != null && !allBalls.contains(blueBall)) {
                     allBalls.add(blueBall);
-
                 }
             }
             for (Spatial redBall : redBalls) {
                 if (redBall != null && !allBalls.contains(redBall)) {
                     allBalls.add(redBall);
-
                 }
             }
 
@@ -179,26 +205,12 @@ public class Main extends SimpleApplication implements PhysicsCollisionListener 
                 }
             });
 
-            if (!allBalls.isEmpty() && !turnDisplayed) {
-                if (allBalls.get(0).getName().contains("red") && redBalls[3] == null) {
-                    nextTurn = "Blue's Turn";
-                } else {
-                    nextTurn = "Red's Turn";
-                }
-                turnDisplayed = true;
-            }
-            if (allBalls.isEmpty() && !turnDisplayed && mobile.hasChild(jack)) {
-                nextTurn = "Red's Turn";
-                turnDisplayed = true;
-            }
-            if (allBalls.isEmpty() && !turnDisplayed && !mobile.hasChild(jack)) {
-                nextTurn = "Throw Jack";
-                turnDisplayed = true;
-            }
+            nextTurn();
             if (allBalls.size() < 8 && ballThrown) {
                 throwBall();
                 ballThrown = false;
                 turnDisplayed = false;
+                powerLevel = 0;
             }
 
         }
@@ -212,6 +224,55 @@ public class Main extends SimpleApplication implements PhysicsCollisionListener 
             endGame();
         }
         updateGUI();
+    }
+
+    private void nextTurn() {
+        if (!allBalls.isEmpty() && !turnDisplayed) {
+            if (allBalls.get(0).getName().contains("red")) {
+                if (blueBalls[3] != null) {
+                    nextTurn = "Red's Turn";
+                } else {
+                    nextTurn = "Blue's Turn";
+                }
+            } else if (allBalls.get(0).getName().contains("blue")) {
+                if (redBalls[3] != null) {
+                    nextTurn = "Blue's Turn";
+                } else {
+                    nextTurn = "Red's Turn";
+                }
+
+            }
+            turnDisplayed = true;
+        }
+        if (allBalls.isEmpty() && !turnDisplayed && mobile.hasChild(jack)) {
+            nextTurn = "Red's Turn";
+            turnDisplayed = true;
+        }
+        if (allBalls.isEmpty() && !turnDisplayed && !mobile.hasChild(jack)) {
+            nextTurn = "Throw Jack";
+            turnDisplayed = true;
+        }
+    }
+
+    private void bindCamera() {
+        if (cam.getLocation().y < 1.5) {
+            cam.setLocation(new Vector3f(cam.getLocation().x, 1.5f, cam.getLocation().z));
+        }
+        if (cam.getLocation().y > 2) {
+            cam.setLocation(new Vector3f(cam.getLocation().x, 2f, cam.getLocation().z));
+        }
+        if (cam.getLocation().x > -6.75) {
+            cam.setLocation(new Vector3f(-6.75f, cam.getLocation().y, cam.getLocation().z));
+        }
+        if (cam.getLocation().x < -13.75) {
+            cam.setLocation(new Vector3f(-13.75f, cam.getLocation().y, cam.getLocation().z));
+        }
+        if (cam.getLocation().z < -2) {
+            cam.setLocation(new Vector3f(cam.getLocation().x, cam.getLocation().y, -2f));
+        }
+        if (cam.getLocation().z > 2) {
+            cam.setLocation(new Vector3f(cam.getLocation().x, cam.getLocation().y, 2f));
+        }
     }
 
     private void calcScore() {
@@ -257,8 +318,7 @@ public class Main extends SimpleApplication implements PhysicsCollisionListener 
             if (jack.getLocalTranslation().y < 0) {
                 bulletAppState.getPhysicsSpace().remove(jack.getControl(RigidBodyControl.class));
                 mobile.detachChild(jack);
-                // jack = null;
-                System.out.println("Out of Bounds Rethrowing");
+                message = "Out of Bounds\nThrow again";
             }
 
         }
@@ -273,7 +333,7 @@ public class Main extends SimpleApplication implements PhysicsCollisionListener 
                     bulletAppState.getPhysicsSpace().remove(blueBalls[i]);
                     blueBalls[i].removeFromParent();
                     blueBalls[i] = null;
-                    System.out.println("Out of Bounds Rethrowing");
+                    message = "Out of Bounds\nThrow again";
                 }
             }
         }
@@ -288,7 +348,7 @@ public class Main extends SimpleApplication implements PhysicsCollisionListener 
                     bulletAppState.getPhysicsSpace().remove(redBalls[i]);
                     redBalls[i].removeFromParent();
                     redBalls[i] = null;
-                    System.out.println("Out of Bounds Rethrowing");
+                    message = "Out of Bounds\nThrow again";
                 }
             }
         }
@@ -342,7 +402,7 @@ public class Main extends SimpleApplication implements PhysicsCollisionListener 
     }
 
     private Vector3f ballForce() {
-        return cam.getDirection().mult(25);
+        return cam.getDirection().mult(powerLevel);
     }
 
     private Vector3f ballPosition() {
@@ -400,19 +460,20 @@ public class Main extends SimpleApplication implements PhysicsCollisionListener 
             }
         }
         allBalls.clear();
+        message = "Next Round\nThrow Jack";
     }
 
     private void endGame() {
         Scanner scanner = new Scanner(System.in);
 
-        System.out.println("Game Over");
+        message = "Game Over";
         if (redScore > blueScore) {
-            System.out.println("Red Wins");
+            message += "\nRed Wins";
         } else {
-            System.out.println("Blue Wins");
+            message += "\nBlue Wins";
         }
-        System.out.println("Red: " + redScore + " - " + "Blue: " + blueScore);
-        System.out.println("Play Again? : ");
+
+        message += "\nPlay Again? (Y/N)";
         String choice = scanner.nextLine();
         if (choice.startsWith("y") || choice.startsWith("Y")) {
             resetRound();
@@ -439,16 +500,50 @@ public class Main extends SimpleApplication implements PhysicsCollisionListener 
         scoreGUI.setText("Red: 0\nBlue: 0\n" + nextTurn);
         scoreGUI.setLocalTranslation(settings.getWidth() * 0.05f,
                 settings.getHeight() * 0.95f, 0);
+        scoreGUI.setColor(ColorRGBA.DarkGray);
         guiNode.attachChild(scoreGUI);
+
+        powerLabel = new BitmapText(guiFont);
+        powerLabel.setSize(guiFont.getCharSet().getRenderedSize() * 2);
+        powerLabel.setText("Power Level: " + powerLevel);
+        powerLabel.setLocalTranslation(settings.getWidth() * 0.05f,
+                settings.getHeight() * 0.05f, 0);
+        powerLabel.setColor(ColorRGBA.DarkGray);
+        guiNode.attachChild(powerLabel);
+
     }
 
     private void updateGUI() {
-        scoreGUI.setText("Red: " + redScore + "\nBlue: " + blueScore + "\n" + nextTurn);
+        scoreGUI.setText("Red: " + redScore + "\nBlue: " + blueScore + "\n" + nextTurn + "\n" + message);
+        powerLabel.setText("Power Level: " + (int) powerLevel);
+
+        if (guiNode.hasChild(powerMeter)) {
+            guiNode.detachChild(powerMeter);
+        }
+
+        Quad powerMeterBox = new Quad(50f, 200f);
+        powerMeter = new Geometry("PowerMeter", powerMeterBox);
+        powerMeter.scale(1, powerLevel / 30, 0);
+
+        Material meterMat = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
+        meterMat.setColor("Color", ColorRGBA.Red);
+        powerMeter.setMaterial(meterMat);
+        powerMeter.setLocalTranslation(settings.getWidth() * 0.05f,
+                settings.getHeight() * 0.15f, 0);
+
+        guiNode.attachChild(powerMeter);
     }
 
     private void initInputs() {
         inputManager.addMapping("shoot",
                 new MouseButtonTrigger(MouseInput.BUTTON_LEFT));
         inputManager.addListener(actionListener, "shoot");
+
+        inputManager.addMapping("PowerUp", new KeyTrigger(KeyInput.KEY_R));
+        inputManager.addMapping("PowerDown", new KeyTrigger(KeyInput.KEY_F));
+
+        /* Add the named mappings to the action listeners. */
+        inputManager.addListener(actionListener, "PowerUp", "PowerDown");
     }
+
 }
