@@ -29,7 +29,6 @@ import com.jme3.scene.Spatial;
 import com.jme3.scene.shape.Quad;
 
 import java.util.ArrayList;
-import java.util.Scanner;
 
 /**
  * This is the Main Class of your Game. You should only do initialization here.
@@ -92,34 +91,38 @@ public class Main extends SimpleApplication implements PhysicsCollisionListener 
     private int redOddEven = 0;
     private int blueOddEven = 0;
 
+    /**
+     * Main method for Game
+     *
+     * @param args
+     */
     public static void main(String[] args) {
         Main app = new Main();
         app.start();
     }
 
+    /**
+     * Initializer for the Bocce Ball game
+     */
     @Override
     public void simpleInitApp() {
         // init Physics
         bulletAppState = new BulletAppState();
         stateManager.attach(bulletAppState);
-        // bulletAppState.setDebugEnabled(inputEnabled);
 
+        // Set up cameras and viewports
         flyCam.setMoveSpeed(10);
 
         cam.setLocation(new Vector3f(-13f, 2f, 0f));
         cam.lookAt(new Vector3f(-0f, 0, 0), Vector3f.UNIT_Y);
-
         cam.setViewPort(0f, 0.8f, 0f, 1f);
+        viewPort.setBackgroundColor(new ColorRGBA(0.5f, 0.8f, 1f, 1f));
 
         Camera cam2 = cam.clone();
-
-        Quaternion yaw90 = new Quaternion();
-        yaw90.fromAngleAxis(FastMath.PI / 2, new Vector3f(0, 1, 0));
 
         cam2.resize(20, 100, true);
         cam2.setViewPort(0.8f, 1, 0, 1);
         cam2.setLocation(new Vector3f(6.9f, 17f, 0));
-        // cam2.setRotation(new Quaternion(0,0.7071070192004544f,0,0.7071070192004544f));
         cam2.lookAt(new Vector3f(6.875f, 0f, 0f), Vector3f.UNIT_X);
 
         ViewPort view2 = renderManager.createMainView("Camera 2 view", cam2);
@@ -127,35 +130,44 @@ public class Main extends SimpleApplication implements PhysicsCollisionListener 
         view2.attachScene(rootNode);
         view2.setBackgroundColor(new ColorRGBA(0.5f, 0.8f, 1f, 1f));
 
-        viewPort.setBackgroundColor(new ColorRGBA(0.5f, 0.8f, 1f, 1f));
-
+        // Load court model and add physics
         court = assetManager.loadModel("Models/bocce_extrude2/bocce_extrude2.j3o");
-
         CollisionShape courtShape = CollisionShapeFactory.createMeshShape(court);
         RigidBodyControl courtPhy = new RigidBodyControl(courtShape, 0.0f);
         courtPhy.setFriction(1.0f);
-        //courtPhy.setRestitution(0.50f);
         court.addControl(courtPhy);
 
         bulletAppState.getPhysicsSpace().add(court);
-
         bulletAppState.getPhysicsSpace().addCollisionListener(this);
 
+        // Scene graph nodes
         immobile = new Node("immobile");
         mobile = new Node("mobile");
 
         immobile.attachChild(court);
-
         rootNode.attachChild(immobile);
 
+        // Add sun lighting
         DirectionalLight sun = new DirectionalLight();
         sun.setDirection(new Vector3f(1.0f, -0.8f, -0f).normalizeLocal());
         rootNode.addLight(sun);
 
+        // Initilize inputs and HUD
         initCrossHairs();
         initInputs();
     }
 
+    /**
+     * Creates a ball Spatial, adds physics, sets position and initial velocity
+     * (i.e. throwing ball)
+     *
+     * @param position Vector3f - position in game, in meters
+     * @param speed Vector3f - initial velocity in meters/sec
+     * @param radius float - radius of ball to be created in meters
+     * @param name String - name of ball
+     * @return Spatial - ball with physics, intial position and velocity (thrown
+     * ball)
+     */
     public Spatial makeBall(Vector3f position, Vector3f speed, float radius, String name) {
 
         Spatial ball = assetManager.loadModel("Models/jackBall/jackBall.j3o");
@@ -176,6 +188,17 @@ public class Main extends SimpleApplication implements PhysicsCollisionListener 
         return ball;
     }
 
+    /**
+     * Creates red bocce ball, with one of two models adds physics, sets
+     * position and initial velocity (i.e. throwing ball)
+     *
+     * @param position Vector3f - position in game, in meters
+     * @param speed Vector3f - initial velocity in meters/sec
+     * @param radius float - radius of ball to be created in meters
+     * @param name String - name of ball
+     * @return Spatial - ball with physics, intial position and velocity (thrown
+     * ball)
+     */
     public Spatial makeRedBall(Vector3f position, Vector3f speed, float radius, String name) {
         Spatial ball;
 
@@ -192,18 +215,29 @@ public class Main extends SimpleApplication implements PhysicsCollisionListener 
         RigidBodyControl ballPhys = new RigidBodyControl(ballShape, 1.0f);
         ball.addControl(ballPhys);
         bulletAppState.getPhysicsSpace().add(ball);
+
         ballPhys.setFriction(1.0f);
         ballPhys.setPhysicsLocation(position);
         ballPhys.setLinearVelocity(speed);
-        //ballPhy.setRestitution(0.50f);
-        //ballPhy.setLinearVelocity(new Vector3f(1f, 0f, 0f));
         mobile.attachChild(ball);
+
         rootNode.attachChild(mobile);
         ballPhys.setCcdMotionThreshold(0.0001f);
         ballPhys.setCcdSweptSphereRadius(radius / 8);
         return ball;
     }
 
+    /**
+     * Creates blue bocce ball, with one of two models adds physics, sets
+     * position and initial velocity (i.e. throwing ball)
+     *
+     * @param position Vector3f - position in game, in meters
+     * @param speed Vector3f - initial velocity in meters/sec
+     * @param radius float - radius of ball to be created in meters
+     * @param name String - name of ball
+     * @return Spatial - ball with physics, intial position and velocity (thrown
+     * ball)
+     */
     public Spatial makeBlueBall(Vector3f position, Vector3f speed, float radius, String name) {
         Spatial ball;
 
@@ -217,39 +251,44 @@ public class Main extends SimpleApplication implements PhysicsCollisionListener 
 
         ball.setName(name);
         SphereCollisionShape ballShape = new SphereCollisionShape(radius);
+
         RigidBodyControl ballPhys = new RigidBodyControl(ballShape, 1.0f);
         ball.addControl(ballPhys);
         bulletAppState.getPhysicsSpace().add(ball);
         ballPhys.setFriction(1.0f);
         ballPhys.setPhysicsLocation(position);
         ballPhys.setLinearVelocity(speed);
-        //ballPhy.setRestitution(0.50f);
-        //ballPhy.setLinearVelocity(new Vector3f(1f, 0f, 0f));
         mobile.attachChild(ball);
+
         rootNode.attachChild(mobile);
         ballPhys.setCcdMotionThreshold(0.0001f);
         ballPhys.setCcdSweptSphereRadius(radius / 8);
         return ball;
     }
 
+    /**
+     * Main update loop, runs continuosly to run game
+     *
+     * @param tpf float - time per frame (tick)
+     */
     @Override
     public void simpleUpdate(float tpf) {
-        //bindCamera();
+        // Restrict Camera/ball throwing to near end of court
+        bindCamera();
 
         if (areBallsMoving()) {
             // Wait if balls are moving
         } else {
-
+            // Test if jack landed in playing area
             if (mobile.hasChild(jack)) {
                 jackPos = jack.getLocalTranslation();
                 if (allBalls.isEmpty() && (jackPos.x > 11.75f || jackPos.x < 6.75f)) {
                     bulletAppState.getPhysicsSpace().remove(jack.getControl(RigidBodyControl.class));
                     mobile.detachChild(jack);
-                    // jack = null;
                     message = "Jack must land\nin play area\nThrow again";
                 }
             }
-
+            // Add all balls in play to Arraylist for calculating distances from jack
             for (Spatial blueBall : blueBalls) {
                 if (blueBall != null && !allBalls.contains(blueBall)) {
                     allBalls.add(blueBall);
@@ -261,27 +300,38 @@ public class Main extends SimpleApplication implements PhysicsCollisionListener 
                 }
             }
 
+            // Sort list based on distance from jack, nearest is first
             allBalls.sort((Spatial o1, Spatial o2) -> {
-                if (calculateDistance(jackPos, o1.getLocalTranslation()) < calculateDistance(jackPos, o2.getLocalTranslation())) {
+                if (calculateDistance(jackPos, o1.getLocalTranslation())
+                        < calculateDistance(jackPos, o2.getLocalTranslation())) {
                     return -1;
                 } else {
                     return 1;
                 }
             });
 
+            // Team not closest to jack throws next, display next team turn
             nextTurn();
+
+            // If no balls are moving, throw next ball
             if (allBalls.size() < 8 && ballThrown) {
                 throwBall();
                 ballThrown = false;
                 turnDisplayed = false;
                 powerLevel = 0;
             }
-
         }
+
+        /* 
+        Calculate score, The team closest to the jack gets
+        one point for each ball closer the jack the the 
+        opponents first closest ball.
+         */
         if (!gameOver) {
             calcScore();
         }
 
+        // After all balls are thrown for each round, set up next round or end game, depending on score
         if ((allBalls.size() == 8 && (redScore < 7 && blueScore < 7)) || (allBalls.size() == 8 && ((redScore >= 7 || blueScore >= 7) && (redScore == blueScore)))) {
             resetRound();
         }
@@ -296,9 +346,14 @@ public class Main extends SimpleApplication implements PhysicsCollisionListener 
             nextTurn = "";
             message += "\nPlay Again? (Y/N)";
         }
+        // Update the GUI
         updateGUI();
     }
 
+    /**
+     * Determine who throws next. Team not closest to jack throws next
+     * unless they have no more balls to throw
+     */
     private void nextTurn() {
         if (!allBalls.isEmpty() && !turnDisplayed) {
             if (allBalls.get(0).getName().contains("red")) {
@@ -327,6 +382,9 @@ public class Main extends SimpleApplication implements PhysicsCollisionListener 
         }
     }
 
+    /**
+     * Restrict Camera/throwing position to near end of court
+     */
     private void bindCamera() {
         if (cam.getLocation().y < 1.5) {
             cam.setLocation(new Vector3f(cam.getLocation().x, 1.5f, cam.getLocation().z));
@@ -348,6 +406,9 @@ public class Main extends SimpleApplication implements PhysicsCollisionListener 
         }
     }
 
+    /**
+     * 
+     */
     private void calcScore() {
         if (allBalls.size() == 8) {
             for (Spatial ball : allBalls) {
@@ -436,7 +497,7 @@ public class Main extends SimpleApplication implements PhysicsCollisionListener 
 
     @Override
     public void collision(PhysicsCollisionEvent event) {
-        // Vector3f output = null;
+
         float absorbEnergy = 0.95f;
         if (event.getNodeA().hasAncestor(mobile) || event.getNodeB().hasAncestor(mobile)) {
             if (event.getNodeA().getParent().getName().equals("mobile")) {
