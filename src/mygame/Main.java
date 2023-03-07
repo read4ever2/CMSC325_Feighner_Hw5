@@ -33,6 +33,20 @@ import java.util.ArrayList;
  *
  * @author normenhansen
  * @author willfeighner
+ *
+ * This program simulates a Bocce Ball game. Use WASD to move camera. Press R/F
+ * to increase/decrease throw power level. Left-click mouse to throw ball. At
+ * end of game press Y to restart, press N to exit game.
+ *
+ * The object of the game is to throw your team's balls as close as possible to
+ * the target ball, or jack. The balls and jack can collide and move. The jack
+ * is thrown first and must land in the play area between the lines on the far
+ * side of the court. After each throw, the team whose ball is not closest to
+ * the jack throws next. After both teams have thrown all four balls each, the
+ * score is calculated. The team whose ball is closest to the jack gets one
+ * point for the first ball and one additional point for each of their balls
+ * that is closer to the jack then the opponents first closest ball. The round
+ * resets and the game continues until one team gets 7 or more points.
  */
 public class Main extends SimpleApplication implements PhysicsCollisionListener {
 
@@ -108,7 +122,8 @@ public class Main extends SimpleApplication implements PhysicsCollisionListener 
         stateManager.attach(bulletAppState);
 
         // Set up cameras and viewports
-        flyCam.setMoveSpeed(10);
+        flyCam.setMoveSpeed(5);
+        flyCam.setRotationSpeed(0.5f);
 
         cam.setLocation(new Vector3f(-13f, 2f, 0f));
         cam.lookAt(new Vector3f(-0f, 0, 0), Vector3f.UNIT_Y);
