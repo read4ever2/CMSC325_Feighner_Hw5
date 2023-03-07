@@ -27,7 +27,7 @@ import com.jme3.scene.Geometry;
 import com.jme3.scene.Node;
 import com.jme3.scene.Spatial;
 import com.jme3.scene.shape.Quad;
-import com.jme3.scene.shape.Sphere;
+
 import java.util.ArrayList;
 import java.util.Scanner;
 
@@ -40,39 +40,62 @@ import java.util.Scanner;
  */
 public class Main extends SimpleApplication implements PhysicsCollisionListener {
 
-    // Fields
-    private Node immobile;
-    private Node mobile;
-    private Spatial court;
-
+    // Feilds
     Spatial[] blueBalls = new Spatial[4];
     Spatial[] redBalls = new Spatial[4];
     Spatial jack;
     Vector3f jackPos = Vector3f.ZERO;
-
     int redScore = 0;
     int blueScore = 0;
     BitmapText scoreGUI;
     String nextTurn = "";
     String message = "";
     float powerLevel = 0f;
-
     ArrayList<Spatial> allBalls = new ArrayList<>();
-
     boolean ballThrown = false;
-
+    boolean gameOver = false;
+    private Node immobile;
+    private Node mobile;
+    private Spatial court;
     private BulletAppState bulletAppState;
+    private boolean turnDisplayed = false;
+    private boolean areBallsMoving = true;
+
+    final private ActionListener actionListener = (String name, boolean keyPressed, float tpf) -> {
+        if (name.equals("shoot") && !keyPressed && !areBallsMoving) {
+            ballThrown = true;
+            message = "";
+        }
+        if (name.equals("PowerUp") && !keyPressed) {
+            powerLevel++;
+            if (powerLevel >= 30) {
+                powerLevel = 30;
+            }
+        }
+        if (name.equals("PowerDown") && !keyPressed) {
+            powerLevel--;
+            if (powerLevel <= 0) {
+                powerLevel = 0;
+            }
+        }
+        if (name.equals("Yes") && !keyPressed && gameOver) {
+            gameOver = false;
+            newGame();
+        }
+        if (name.equals("No") && !keyPressed && gameOver) {
+            System.exit(0);
+        }
+    };
+
+    private BitmapText powerLabel;
+    private Geometry powerMeter;
+    private int redOddEven = 0;
+    private int blueOddEven = 0;
 
     public static void main(String[] args) {
         Main app = new Main();
         app.start();
     }
-    private boolean turnDisplayed = false;
-    private boolean areBallsMoving = true;
-    private BitmapText powerLabel;
-    private Geometry powerMeter;
-    private int redOddEven = 0;
-    private int blueOddEven = 0;
 
     @Override
     public void simpleInitApp() {
@@ -133,39 +156,17 @@ public class Main extends SimpleApplication implements PhysicsCollisionListener 
         initInputs();
     }
 
-    final private ActionListener actionListener = (String name, boolean keyPressed, float tpf) -> {
-        if (name.equals("shoot") && !keyPressed && !areBallsMoving) {
-            ballThrown = true;
-            message = "";
-        }
-        if (name.equals("PowerUp") && !keyPressed) {
-            powerLevel++;
-            if (powerLevel >= 30) {
-                powerLevel = 30;
-            }
-        }
-        if (name.equals("PowerDown") && !keyPressed) {
-            powerLevel--;
-            if (powerLevel <= 0) {
-                powerLevel = 0;
-            }
-        }
-    };
+    public Spatial makeBall(Vector3f position, Vector3f speed, float radius, String name) {
 
-    public Spatial makeBall(Vector3f position, Vector3f speed, ColorRGBA color, float radius, String name) {
-
-        Sphere sphere = new Sphere(64, 64, radius, true, true);
-        Spatial ball = new Geometry(name, sphere);
-        Material ballMat = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
-        ballMat.setColor("Color", color);
-        ball.setMaterial(ballMat);
-
-        RigidBodyControl ballPhy = new RigidBodyControl(1.0f);
+        Spatial ball = assetManager.loadModel("Models/jackBall/jackBall.j3o");
+        ball.setName(name);
+        SphereCollisionShape ballShape = new SphereCollisionShape(radius);
+        RigidBodyControl ballPhy = new RigidBodyControl(ballShape, 0.1f);
         ball.addControl(ballPhy);
         bulletAppState.getPhysicsSpace().add(ball);
         ballPhy.setFriction(1.0f);
         ballPhy.setPhysicsLocation(position);
-        ballPhy.applyImpulse(speed, Vector3f.ZERO);
+        ballPhy.setLinearVelocity(speed);
         //ballPhy.setRestitution(0.50f);
         //ballPhy.setLinearVelocity(new Vector3f(1f, 0f, 0f));
         mobile.attachChild(ball);
@@ -193,7 +194,7 @@ public class Main extends SimpleApplication implements PhysicsCollisionListener 
         bulletAppState.getPhysicsSpace().add(ball);
         ballPhys.setFriction(1.0f);
         ballPhys.setPhysicsLocation(position);
-        ballPhys.applyImpulse(speed, Vector3f.ZERO);
+        ballPhys.setLinearVelocity(speed);
         //ballPhy.setRestitution(0.50f);
         //ballPhy.setLinearVelocity(new Vector3f(1f, 0f, 0f));
         mobile.attachChild(ball);
@@ -221,7 +222,7 @@ public class Main extends SimpleApplication implements PhysicsCollisionListener 
         bulletAppState.getPhysicsSpace().add(ball);
         ballPhys.setFriction(1.0f);
         ballPhys.setPhysicsLocation(position);
-        ballPhys.applyImpulse(speed, Vector3f.ZERO);
+        ballPhys.setLinearVelocity(speed);
         //ballPhy.setRestitution(0.50f);
         //ballPhy.setLinearVelocity(new Vector3f(1f, 0f, 0f));
         mobile.attachChild(ball);
@@ -277,14 +278,23 @@ public class Main extends SimpleApplication implements PhysicsCollisionListener 
             }
 
         }
-
-        calcScore();
+        if (!gameOver) {
+            calcScore();
+        }
 
         if ((allBalls.size() == 8 && (redScore < 7 && blueScore < 7)) || (allBalls.size() == 8 && ((redScore >= 7 || blueScore >= 7) && (redScore == blueScore)))) {
             resetRound();
         }
         if (allBalls.size() == 8 && ((redScore >= 7 || blueScore >= 7) && (redScore != blueScore))) {
-            endGame();
+            gameOver = true;
+            message = "Game Over";
+            if (redScore > blueScore) {
+                message += "\nRed Wins";
+            } else {
+                message += "\nBlue Wins";
+            }
+            nextTurn = "";
+            message += "\nPlay Again? (Y/N)";
         }
         updateGUI();
     }
@@ -420,44 +430,41 @@ public class Main extends SimpleApplication implements PhysicsCollisionListener 
     }
 
     @Override
-    public void simpleRender(RenderManager rm
-    ) {
+    public void simpleRender(RenderManager rm) {
         //TODO: add render code
     }
 
     @Override
-    public void collision(PhysicsCollisionEvent event
-    ) {
+    public void collision(PhysicsCollisionEvent event) {
         // Vector3f output = null;
         float absorbEnergy = 0.95f;
+        if (event.getNodeA().hasAncestor(mobile) || event.getNodeB().hasAncestor(mobile)) {
+            if (event.getNodeA().getParent().getName().equals("mobile")) {
+                final Spatial node = event.getNodeA();
 
-        if (event.getNodeA().getParent().getName().equals("mobile")) {
-            final Spatial node = event.getNodeA();
+                RigidBodyControl nodeControl = node.getControl(RigidBodyControl.class);
+                if (nodeControl.getLinearVelocity().length() < 0.01) {
+                    nodeControl.setLinearVelocity(Vector3f.ZERO);
+                    nodeControl.setAngularVelocity(Vector3f.ZERO);
+                    nodeControl.clearForces();
 
-            RigidBodyControl nodeControl = node.getControl(RigidBodyControl.class
-            );
-            if (nodeControl.getLinearVelocity().length() < 0.01) {
-                nodeControl.setLinearVelocity(Vector3f.ZERO);
-                nodeControl.setAngularVelocity(Vector3f.ZERO);
-                nodeControl.clearForces();
+                } else {
+                    nodeControl.setAngularVelocity(nodeControl.getAngularVelocity().mult(absorbEnergy));
 
-            } else {
-                nodeControl.setAngularVelocity(nodeControl.getAngularVelocity().mult(absorbEnergy));
-
+                }
+            } else if (event.getNodeB().getParent().getName().equals("mobile")) {
+                final Spatial node = event.getNodeB();
+                RigidBodyControl nodeControl = node.getControl(RigidBodyControl.class);
+                if (nodeControl.getLinearVelocity().length() < 0.01) {
+                    nodeControl.setLinearVelocity(Vector3f.ZERO);
+                    nodeControl.setAngularVelocity(Vector3f.ZERO);
+                    nodeControl.clearForces();
+                } else {
+                    nodeControl.setAngularVelocity(nodeControl.getAngularVelocity().mult(absorbEnergy));
+                }
             }
-        } else if (event.getNodeB().getParent().getName().equals("mobile")) {
-            final Spatial node = event.getNodeA();
-            RigidBodyControl nodeControl = node.getControl(RigidBodyControl.class
-            );
-            if (nodeControl.getLinearVelocity().length() < 0.01) {
-                nodeControl.setLinearVelocity(Vector3f.ZERO);
-                nodeControl.setAngularVelocity(Vector3f.ZERO);
-                nodeControl.clearForces();
-            } else {
-                nodeControl.setAngularVelocity(nodeControl.getAngularVelocity().mult(absorbEnergy));
-            }
+
         }
-
     }
 
     private float calculateDistance(Vector3f jackPos, Vector3f ballPos) {
@@ -475,7 +482,7 @@ public class Main extends SimpleApplication implements PhysicsCollisionListener 
     private void throwBall() {
 
         if (!mobile.hasChild(jack)) {
-            jack = makeBall(ballPosition(), ballForce(), ColorRGBA.Yellow, 0.02f, "jack");
+            jack = makeBall(ballPosition(), ballForce(), 0.02f, "jack");
             return;
         }
         if (allBalls.isEmpty()) {
@@ -529,25 +536,32 @@ public class Main extends SimpleApplication implements PhysicsCollisionListener 
         blueOddEven = 0;
     }
 
-    private void endGame() {
-        Scanner scanner = new Scanner(System.in);
-
-        message = "Game Over";
-        if (redScore > blueScore) {
-            message += "\nRed Wins";
-        } else {
-            message += "\nBlue Wins";
+    private void newGame() {
+        //mobile.detachChild(jack);
+        bulletAppState.getPhysicsSpace().remove(jack);
+        jack = null;
+        for (int i = 0; i < blueBalls.length; i++) {
+            if (blueBalls[i] != null) {
+                bulletAppState.getPhysicsSpace().remove(blueBalls[i]);
+                blueBalls[i].removeFromParent();
+                blueBalls[i] = null;
+            }
         }
-
-        message += "\nPlay Again? (Y/N)";
-        String choice = scanner.nextLine();
-        if (choice.startsWith("y") || choice.startsWith("Y")) {
-            resetRound();
-            blueScore = 0;
-            redScore = 0;
-        } else {
-            System.exit(0);
+        for (int i = 0; i < redBalls.length; i++) {
+            if (redBalls[i] != null) {
+                bulletAppState.getPhysicsSpace().remove(redBalls[i]);
+                redBalls[i].removeFromParent();
+                redBalls[i] = null;
+            }
         }
+        mobile.detachAllChildren();
+        allBalls.clear();
+        message = "Throw Jack";
+        nextTurn = "";
+        redOddEven = 0;
+        blueOddEven = 0;
+        redScore = 0;
+        blueScore = 0;
     }
 
     private void initCrossHairs() {
@@ -555,25 +569,22 @@ public class Main extends SimpleApplication implements PhysicsCollisionListener 
         //guiFont = assetManager.loadFont("Interface/Fonts/Default.fnt");
         BitmapText ch = new BitmapText(guiFont);
         ch.setSize(guiFont.getCharSet().getRenderedSize() * 2);
-        ch.setText("+");        // fake crosshairs :)
+        ch.setText("+");        // fake cross-hairs :)
         ch.setLocalTranslation( // center
-                settings.getWidth() * 0.4f,
-                settings.getHeight() / 2, 0);
+                settings.getWidth() * 0.4f, settings.getHeight() / 2, 0);
         guiNode.attachChild(ch);
 
         scoreGUI = new BitmapText(guiFont);
         scoreGUI.setSize(guiFont.getCharSet().getRenderedSize() * 2);
         scoreGUI.setText("Red: 0\nBlue: 0\n" + nextTurn);
-        scoreGUI.setLocalTranslation(settings.getWidth() * 0.05f,
-                settings.getHeight() * 0.95f, 0);
+        scoreGUI.setLocalTranslation(settings.getWidth() * 0.05f, settings.getHeight() * 0.95f, 0);
         scoreGUI.setColor(ColorRGBA.DarkGray);
         guiNode.attachChild(scoreGUI);
 
         powerLabel = new BitmapText(guiFont);
         powerLabel.setSize(guiFont.getCharSet().getRenderedSize() * 2);
         powerLabel.setText("Power Level: " + powerLevel);
-        powerLabel.setLocalTranslation(settings.getWidth() * 0.05f,
-                settings.getHeight() * 0.05f, 0);
+        powerLabel.setLocalTranslation(settings.getWidth() * 0.05f, settings.getHeight() * 0.05f, 0);
         powerLabel.setColor(ColorRGBA.DarkGray);
         guiNode.attachChild(powerLabel);
 
@@ -594,22 +605,22 @@ public class Main extends SimpleApplication implements PhysicsCollisionListener 
         Material meterMat = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
         meterMat.setColor("Color", ColorRGBA.Red);
         powerMeter.setMaterial(meterMat);
-        powerMeter.setLocalTranslation(settings.getWidth() * 0.05f,
-                settings.getHeight() * 0.15f, 0);
+        powerMeter.setLocalTranslation(settings.getWidth() * 0.05f, settings.getHeight() * 0.15f, 0);
 
         guiNode.attachChild(powerMeter);
     }
 
     private void initInputs() {
-        inputManager.addMapping("shoot",
-                new MouseButtonTrigger(MouseInput.BUTTON_LEFT));
+        inputManager.addMapping("shoot", new MouseButtonTrigger(MouseInput.BUTTON_LEFT));
         inputManager.addListener(actionListener, "shoot");
 
         inputManager.addMapping("PowerUp", new KeyTrigger(KeyInput.KEY_R));
         inputManager.addMapping("PowerDown", new KeyTrigger(KeyInput.KEY_F));
+        inputManager.addMapping("Yes", new KeyTrigger(KeyInput.KEY_Y));
+        inputManager.addMapping("No", new KeyTrigger(KeyInput.KEY_N));
 
         /* Add the named mappings to the action listeners. */
-        inputManager.addListener(actionListener, "PowerUp", "PowerDown");
+        inputManager.addListener(actionListener, "PowerUp", "PowerDown", "Yes", "No");
     }
 
 }
