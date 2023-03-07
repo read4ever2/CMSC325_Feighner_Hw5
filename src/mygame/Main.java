@@ -5,6 +5,7 @@ import com.jme3.bullet.BulletAppState;
 import com.jme3.bullet.collision.PhysicsCollisionEvent;
 import com.jme3.bullet.collision.PhysicsCollisionListener;
 import com.jme3.bullet.collision.shapes.CollisionShape;
+import com.jme3.bullet.collision.shapes.SphereCollisionShape;
 import com.jme3.bullet.control.RigidBodyControl;
 import com.jme3.bullet.util.CollisionShapeFactory;
 import com.jme3.font.BitmapText;
@@ -70,13 +71,15 @@ public class Main extends SimpleApplication implements PhysicsCollisionListener 
     private boolean areBallsMoving = true;
     private BitmapText powerLabel;
     private Geometry powerMeter;
+    private int redOddEven = 0;
+    private int blueOddEven = 0;
 
     @Override
     public void simpleInitApp() {
         // init Physics
         bulletAppState = new BulletAppState();
         stateManager.attach(bulletAppState);
-        //bulletAppState.setDebugEnabled(inputEnabled);
+        // bulletAppState.setDebugEnabled(inputEnabled);
 
         flyCam.setMoveSpeed(10);
 
@@ -110,7 +113,9 @@ public class Main extends SimpleApplication implements PhysicsCollisionListener 
         courtPhy.setFriction(1.0f);
         //courtPhy.setRestitution(0.50f);
         court.addControl(courtPhy);
+
         bulletAppState.getPhysicsSpace().add(court);
+
         bulletAppState.getPhysicsSpace().addCollisionListener(this);
 
         immobile = new Node("immobile");
@@ -121,7 +126,7 @@ public class Main extends SimpleApplication implements PhysicsCollisionListener 
         rootNode.attachChild(immobile);
 
         DirectionalLight sun = new DirectionalLight();
-        sun.setDirection(new Vector3f(-0.1f, -0.7f, -1.0f).normalizeLocal());
+        sun.setDirection(new Vector3f(1.0f, -0.8f, -0f).normalizeLocal());
         rootNode.addLight(sun);
 
         initCrossHairs();
@@ -154,6 +159,7 @@ public class Main extends SimpleApplication implements PhysicsCollisionListener 
         Material ballMat = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
         ballMat.setColor("Color", color);
         ball.setMaterial(ballMat);
+
         RigidBodyControl ballPhy = new RigidBodyControl(1.0f);
         ball.addControl(ballPhy);
         bulletAppState.getPhysicsSpace().add(ball);
@@ -169,9 +175,65 @@ public class Main extends SimpleApplication implements PhysicsCollisionListener 
         return ball;
     }
 
+    public Spatial makeRedBall(Vector3f position, Vector3f speed, float radius, String name) {
+        Spatial ball;
+
+        if (redOddEven % 2 == 0) {
+            ball = assetManager.loadModel("Models/redBocceBallCircle/redBocceBallCircle.j3o");
+        } else {
+            ball = assetManager.loadModel("Models/redBocceBallStripe/redBocceBallStripe.j3o");
+        }
+
+        redOddEven++;
+
+        ball.setName(name);
+        SphereCollisionShape ballShape = new SphereCollisionShape(radius);
+        RigidBodyControl ballPhys = new RigidBodyControl(ballShape, 1.0f);
+        ball.addControl(ballPhys);
+        bulletAppState.getPhysicsSpace().add(ball);
+        ballPhys.setFriction(1.0f);
+        ballPhys.setPhysicsLocation(position);
+        ballPhys.applyImpulse(speed, Vector3f.ZERO);
+        //ballPhy.setRestitution(0.50f);
+        //ballPhy.setLinearVelocity(new Vector3f(1f, 0f, 0f));
+        mobile.attachChild(ball);
+        rootNode.attachChild(mobile);
+        ballPhys.setCcdMotionThreshold(0.0001f);
+        ballPhys.setCcdSweptSphereRadius(radius / 8);
+        return ball;
+    }
+
+    public Spatial makeBlueBall(Vector3f position, Vector3f speed, float radius, String name) {
+        Spatial ball;
+
+        if (blueOddEven % 2 == 0) {
+            ball = assetManager.loadModel("Models/blueBocceBallCircle/blueBocceBallCircle.j3o");
+        } else {
+            ball = assetManager.loadModel("Models/blueBocceBallStripe/blueBocceBallStripe.j3o");
+        }
+
+        blueOddEven++;
+
+        ball.setName(name);
+        SphereCollisionShape ballShape = new SphereCollisionShape(radius);
+        RigidBodyControl ballPhys = new RigidBodyControl(ballShape, 1.0f);
+        ball.addControl(ballPhys);
+        bulletAppState.getPhysicsSpace().add(ball);
+        ballPhys.setFriction(1.0f);
+        ballPhys.setPhysicsLocation(position);
+        ballPhys.applyImpulse(speed, Vector3f.ZERO);
+        //ballPhy.setRestitution(0.50f);
+        //ballPhy.setLinearVelocity(new Vector3f(1f, 0f, 0f));
+        mobile.attachChild(ball);
+        rootNode.attachChild(mobile);
+        ballPhys.setCcdMotionThreshold(0.0001f);
+        ballPhys.setCcdSweptSphereRadius(radius / 8);
+        return ball;
+    }
+
     @Override
     public void simpleUpdate(float tpf) {
-        bindCamera();
+        //bindCamera();
 
         if (areBallsMoving()) {
             // Wait if balls are moving
@@ -417,14 +479,14 @@ public class Main extends SimpleApplication implements PhysicsCollisionListener 
             return;
         }
         if (allBalls.isEmpty()) {
-            redBalls[0] = redBalls[0] = makeBall(ballPosition(), ballForce(), ColorRGBA.Red, 0.0535f, "red0");
+            redBalls[0] = makeRedBall(ballPosition(), ballForce(), 0.0535f, "red0");
             return;
         }
         if (allBalls.get(0).getName().contains("red") || redBalls[3] != null) {
             for (int i = 0; i < blueBalls.length; i++) {
                 if (blueBalls[i] == null) {
                     String name = "blue" + i;
-                    blueBalls[i] = makeBall(ballPosition(), ballForce(), ColorRGBA.Blue, 0.0535f, name);
+                    blueBalls[i] = makeBlueBall(ballPosition(), ballForce(), 0.0535f, name);
                     return;
                 }
             }
@@ -433,7 +495,7 @@ public class Main extends SimpleApplication implements PhysicsCollisionListener 
             for (int i = 0; i < redBalls.length; i++) {
                 if (redBalls[i] == null) {
                     String name = "red" + i;
-                    redBalls[i] = makeBall(ballPosition(), ballForce(), ColorRGBA.Red, 0.0535f, name);
+                    redBalls[i] = makeRedBall(ballPosition(), ballForce(), 0.0535f, name);
                     return;
                 }
             }
@@ -462,6 +524,9 @@ public class Main extends SimpleApplication implements PhysicsCollisionListener 
         }
         allBalls.clear();
         message = "Next Round\nThrow Jack";
+        nextTurn = "";
+        redOddEven = 0;
+        blueOddEven = 0;
     }
 
     private void endGame() {
