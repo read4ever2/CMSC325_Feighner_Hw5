@@ -17,8 +17,6 @@ import com.jme3.input.controls.MouseButtonTrigger;
 import com.jme3.light.DirectionalLight;
 import com.jme3.material.Material;
 import com.jme3.math.ColorRGBA;
-import com.jme3.math.FastMath;
-import com.jme3.math.Quaternion;
 import com.jme3.math.Vector3f;
 import com.jme3.renderer.Camera;
 import com.jme3.renderer.RenderManager;
@@ -351,8 +349,8 @@ public class Main extends SimpleApplication implements PhysicsCollisionListener 
     }
 
     /**
-     * Determine who throws next. Team not closest to jack throws next
-     * unless they have no more balls to throw
+     * Determine who throws next. Team not closest to jack throws next unless
+     * they have no more balls to throw
      */
     private void nextTurn() {
         if (!allBalls.isEmpty() && !turnDisplayed) {
@@ -407,13 +405,12 @@ public class Main extends SimpleApplication implements PhysicsCollisionListener 
     }
 
     /**
-     * 
+     * Calculate score from list of all balls sorted by distance Determine ball
+     * closest to jack, loop through list, increment that teams score until the
+     * first opponent ball encoutered
      */
     private void calcScore() {
         if (allBalls.size() == 8) {
-            for (Spatial ball : allBalls) {
-                System.out.println(ball.getName());
-            }
             if (allBalls.get(0).getName().contains("red")) {
                 redScore++;
                 for (int i = 1; i < allBalls.size() - 1; i++) {
@@ -433,13 +430,18 @@ public class Main extends SimpleApplication implements PhysicsCollisionListener 
                     }
                 }
             }
-            System.out.println("Red Score: " + redScore);
-            System.out.println("Blue Score: " + blueScore);
-
         }
-
     }
 
+    /**
+     * Determine if balls are moving All game logic skipped until balls have
+     * stopped moving. Check all balls and jacks linear Velocity. If not zero
+     * set areBallsMoving to true. If any balls are moving and have a negative
+     * position in the Y axis, they have fallen outside the court/play area and
+     * must be removed from the game and thrown again.
+     *
+     * @return boolean - if any balls are moving return true
+     */
     public boolean areBallsMoving() {
         areBallsMoving = false;
         RigidBodyControl ballCheck;
@@ -454,7 +456,6 @@ public class Main extends SimpleApplication implements PhysicsCollisionListener 
                 mobile.detachChild(jack);
                 message = "Out of Bounds\nThrow again";
             }
-
         }
 
         for (int i = 0; i < blueBalls.length; i++) {
@@ -486,15 +487,16 @@ public class Main extends SimpleApplication implements PhysicsCollisionListener 
                 }
             }
         }
-
         return areBallsMoving;
     }
 
-    @Override
-    public void simpleRender(RenderManager rm) {
-        //TODO: add render code
-    }
-
+    /**
+     * Deals with collisions between balls and balls/court. Slows down balls by
+     * simulating friction. Sets linear and angular velcocities to Zero at very
+     * low speeds.
+     *
+     * @param event PhysicsCollisionEvent - from Collisionlistener
+     */
     @Override
     public void collision(PhysicsCollisionEvent event) {
 
@@ -502,16 +504,13 @@ public class Main extends SimpleApplication implements PhysicsCollisionListener 
         if (event.getNodeA().hasAncestor(mobile) || event.getNodeB().hasAncestor(mobile)) {
             if (event.getNodeA().getParent().getName().equals("mobile")) {
                 final Spatial node = event.getNodeA();
-
                 RigidBodyControl nodeControl = node.getControl(RigidBodyControl.class);
                 if (nodeControl.getLinearVelocity().length() < 0.01) {
                     nodeControl.setLinearVelocity(Vector3f.ZERO);
                     nodeControl.setAngularVelocity(Vector3f.ZERO);
                     nodeControl.clearForces();
-
                 } else {
                     nodeControl.setAngularVelocity(nodeControl.getAngularVelocity().mult(absorbEnergy));
-
                 }
             } else if (event.getNodeB().getParent().getName().equals("mobile")) {
                 final Spatial node = event.getNodeB();
@@ -524,22 +523,25 @@ public class Main extends SimpleApplication implements PhysicsCollisionListener 
                     nodeControl.setAngularVelocity(nodeControl.getAngularVelocity().mult(absorbEnergy));
                 }
             }
-
         }
     }
 
+    // Calculates distance between jack and provided ball
     private float calculateDistance(Vector3f jackPos, Vector3f ballPos) {
         return jackPos.subtract(ballPos).length();
     }
 
+    // Set thrown ball initial speed from power level
     private Vector3f ballForce() {
         return cam.getDirection().mult(powerLevel);
     }
 
+    // Positions ball at camera position for throwing
     private Vector3f ballPosition() {
         return cam.getLocation();
     }
 
+    // Creates and throws ball
     private void throwBall() {
 
         if (!mobile.hasChild(jack)) {
@@ -571,6 +573,7 @@ public class Main extends SimpleApplication implements PhysicsCollisionListener 
         ballThrown = true;
     }
 
+    // Resets round, clears balls
     private void resetRound() {
         mobile.detachChild(jack);
         bulletAppState.getPhysicsSpace().remove(jack);
@@ -597,8 +600,8 @@ public class Main extends SimpleApplication implements PhysicsCollisionListener 
         blueOddEven = 0;
     }
 
+    // Resets game, clears all balls, scores, messages
     private void newGame() {
-        //mobile.detachChild(jack);
         bulletAppState.getPhysicsSpace().remove(jack);
         jack = null;
         for (int i = 0; i < blueBalls.length; i++) {
@@ -625,35 +628,34 @@ public class Main extends SimpleApplication implements PhysicsCollisionListener 
         blueScore = 0;
     }
 
+    // Initilize GUI
     private void initCrossHairs() {
         setDisplayStatView(false);
-        //guiFont = assetManager.loadFont("Interface/Fonts/Default.fnt");
         BitmapText ch = new BitmapText(guiFont);
         ch.setSize(guiFont.getCharSet().getRenderedSize() * 2);
-        ch.setText("+");        // fake cross-hairs :)
-        ch.setLocalTranslation( // center
-                settings.getWidth() * 0.4f, settings.getHeight() / 2, 0);
+        ch.setText("+");
+        ch.setLocalTranslation(settings.getWidth() * 0.4f, settings.getHeight() / 2, 0);
         guiNode.attachChild(ch);
 
         scoreGUI = new BitmapText(guiFont);
         scoreGUI.setSize(guiFont.getCharSet().getRenderedSize() * 2);
         scoreGUI.setText("Red: 0\nBlue: 0\n" + nextTurn);
         scoreGUI.setLocalTranslation(settings.getWidth() * 0.05f, settings.getHeight() * 0.95f, 0);
-        scoreGUI.setColor(ColorRGBA.DarkGray);
+        scoreGUI.setColor(ColorRGBA.Black);
         guiNode.attachChild(scoreGUI);
 
         powerLabel = new BitmapText(guiFont);
         powerLabel.setSize(guiFont.getCharSet().getRenderedSize() * 2);
-        powerLabel.setText("Power Level: " + powerLevel);
+        powerLabel.setText("Power Level (R/F): " + powerLevel);
         powerLabel.setLocalTranslation(settings.getWidth() * 0.05f, settings.getHeight() * 0.05f, 0);
-        powerLabel.setColor(ColorRGBA.DarkGray);
+        powerLabel.setColor(ColorRGBA.Black);
         guiNode.attachChild(powerLabel);
-
     }
 
+    // Updates GUI, displays power level for throw in number and bar
     private void updateGUI() {
         scoreGUI.setText("Red: " + redScore + "\nBlue: " + blueScore + "\n" + nextTurn + "\n" + message);
-        powerLabel.setText("Power Level: " + (int) powerLevel);
+        powerLabel.setText("Power Level (R/F): " + (int) powerLevel);
 
         if (guiNode.hasChild(powerMeter)) {
             guiNode.detachChild(powerMeter);
@@ -671,6 +673,7 @@ public class Main extends SimpleApplication implements PhysicsCollisionListener 
         guiNode.attachChild(powerMeter);
     }
 
+    // Initalize input button mapping
     private void initInputs() {
         inputManager.addMapping("shoot", new MouseButtonTrigger(MouseInput.BUTTON_LEFT));
         inputManager.addListener(actionListener, "shoot");
@@ -683,5 +686,4 @@ public class Main extends SimpleApplication implements PhysicsCollisionListener 
         /* Add the named mappings to the action listeners. */
         inputManager.addListener(actionListener, "PowerUp", "PowerDown", "Yes", "No");
     }
-
 }
