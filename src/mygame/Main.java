@@ -35,8 +35,8 @@ import java.util.ArrayList;
  * @author willfeighner
  *
  * This program simulates a Bocce Ball game. Use WASD to move camera. Press R/F
- * to increase/decrease throw power level. Left-click mouse to throw ball. At
- * end of game press Y to restart, press N to exit game.
+ * to increase/decrease throw power level. Use mouse to aim throw. Left-click
+ * mouse to throw ball. At end of game press Y to restart, press N to exit game.
  *
  * The object of the game is to throw your team's balls as close as possible to
  * the target ball, or jack. The balls and jack can collide and move. The jack
